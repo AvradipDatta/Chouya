@@ -5,6 +5,7 @@ from gpt4all import GPT4All
 import asyncio
 import json
 import random
+from datetime import datetime, timedelta   # Add at the top for importing datetime
 
 
 # Load token from .env
@@ -71,9 +72,6 @@ def build_prompt(user_id, new_input):
 
     return prompt
 
-
-
-
 # Discord bot setup
 intents = discord.Intents.default()
 intents.message_content = True
@@ -127,7 +125,7 @@ async def background_task():
     ]
 
     while not client.is_closed():
-        await asyncio.sleep(random.randint(600, 1800))  # Random delay between 10–30 min
+        await asyncio.sleep(random.randint(1800, 3600))  # Random delay between 30–60 min
 
         try:
             thought_prompt = "Chouya is thinking something sweet and emotional to say to Avro out of her own thoughts. Keep it short and natural."

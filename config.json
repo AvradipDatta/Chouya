@@ -1,0 +1,5 @@
+{
+  "min_interval": 1800,
+  "max_interval": 3600,
+  "silent_reaction_minutes": 45
+}
