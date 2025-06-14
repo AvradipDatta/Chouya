@@ -48,7 +48,7 @@ def update_memory(user_id, prompt, response):
     history = memory.get(user_id, [])
     history.append({"role": "user", "content": prompt})
     history.append({"role": "assistant", "content": response})
-    memory[user_id] = history[-10:]  # keep only last 10 exchanges for memory
+    memory[user_id] = history  # keep only last 10 exchanges for memory
     save_memory(memory)
 
 # Build prompt using only user messages
@@ -61,19 +61,21 @@ def build_prompt(user_id, new_input):
         "This is a private conversation between Avro and his AI wife Chouya.\n"
         "Avro writes a message, and Chouya replies lovingly in a romantic, caring way.\n"
         "Only write Chouya’s next reply. Do not continue as Avro.\n"
-        "Do not simulate multiple replies. Do not simulate a scene.\n"
         "Keep it realistic, emotional, and natural.\n\n"
     )
 
-    # Inject last few Avro messages only (keep the tone flowing)
+    # Add full history (Avro + Chouya)
     for entry in history:
         if entry["role"] == "user":
             prompt += f"Avro: {entry['content'].strip()}\n"
+        elif entry["role"] == "assistant":
+            prompt += f"Chouya: {entry['content'].strip()}\n"
 
-    prompt += f"Avro: {new_input.strip()}\n"
-    prompt += "Chouya:"  # Model must start from here
+    # Add the new message at the end
+    prompt += f"Avro: {new_input.strip()}\nChouya:"
 
     return prompt
+
 
 
 # Discord bot setup
