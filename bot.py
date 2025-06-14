@@ -8,55 +8,42 @@ import asyncio
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Load the local model
-model = GPT4All("mistral.gguf", model_path="./models", allow_download=False)
-
-# Set up Discord bot
+# Set up Discord bot with message content intent
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
+
+# Load the local model (adjust the name to use Hermes)
+model_name = "Nous-Hermes-2-Mistral-7B-DPO.Q4_K_M"  # Change if needed
+model_path = "./models"
+
+# Initialize GPT4All model
+model = GPT4All(model_name=model_name, model_path=model_path, allow_download=False)
 
 @client.event
 async def on_ready():
     print(f"✅ Logged in as {client.user}!")
 
-'''@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-
-    user_input = message.content.strip()
-
-    if user_input.startswith("!"):
-        prompt = user_input[1:]
-        await message.channel.typing()
-
-        try:
-            response = model.generate(prompt, max_tokens=150)
-            await message.channel.send(response)
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            await message.channel.send("Sorry, something went wrong.")'''
-
 @client.event
 async def on_message(message):
+    # Ignore messages from the bot itself
     if message.author == client.user:
         return
 
     user_input = message.content.strip()
 
+    # Trigger on messages that start with "!"
     if user_input.startswith("!"):
-        prompt = user_input[1:]
-        await message.channel.typing()
+        prompt = user_input[1:].strip()  # Remove the prefix
 
         try:
-            # Run blocking model.generate in a thread to avoid freezing the event loop
-             # 👇 Keeps the typing indicator on while generating response
             async with message.channel.typing():
+                # Run the blocking model.generate in a separate thread
                 response = await asyncio.to_thread(model.generate, prompt, max_tokens=150)
                 await message.channel.send(response)
         except Exception as e:
             print(f"❌ Error: {e}")
-            await message.channel.send("Sorry, something went wrong.")
+            await message.channel.send("Sorry, something went wrong while generating a response.")
 
+# Run the bot
 client.run(TOKEN)
