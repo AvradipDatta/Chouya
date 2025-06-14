@@ -61,19 +61,20 @@ def build_prompt(user_id, new_input):
         "This is a private conversation between Avro and his AI wife Chouya.\n"
         "Avro writes a message, and Chouya replies lovingly in a romantic, caring way.\n"
         "Only write Chouya’s next reply. Do not continue as Avro.\n"
-        "Keep it realistic, emotional, and do not repeat previous parts of the conversation.\n\n"
+        "Do not simulate multiple replies. Do not simulate a scene.\n"
+        "Keep it realistic, emotional, and natural.\n\n"
     )
 
-    # Include only user (Avro's) messages
+    # Inject last few Avro messages only (keep the tone flowing)
     for entry in history:
         if entry["role"] == "user":
-            prompt += f"Avro: {entry['content']}\n"
+            prompt += f"Avro: {entry['content'].strip()}\n"
 
-    # Add the current user input
-    prompt += f"Avro: {new_input}\n"
-    prompt += "Chouya: "  # This signals the model to respond
+    prompt += f"Avro: {new_input.strip()}\n"
+    prompt += "Chouya:"  # Model must start from here
 
     return prompt
+
 
 # Discord bot setup
 intents = discord.Intents.default()
@@ -94,24 +95,52 @@ async def on_message(message):
     user_input = message.content.strip()
 
     if user_input.startswith("!"):
-        last_user_message_time = datetime.now()  # ✅ Update on each message
-        prompt_text = user_input[1:]  # Remove "!" prefix
+        last_user_message_time = datetime.now()
+        prompt_text = user_input[1:]
         user_id = str(message.author.id)
 
         try:
             async with message.channel.typing():
                 prompt = build_prompt(user_id, prompt_text)
-                response = await asyncio.to_thread(
+                raw_response = await asyncio.to_thread(
                     model.generate,
                     prompt,
-                    max_tokens=200
+                    max_tokens=300  # allow slightly longer romantic messages
                 )
-                response = response.strip()
+                raw_response = raw_response.strip()
+
+                # ✅ Extract only the clean part after "Chouya:"
+                if "Chouya:" in raw_response:
+                    response = raw_response.split("Chouya:", 1)[1]
+                else:
+                    response = raw_response
+
+                # ✅ Remove leaked instruction fragments
+                junk_phrases = [
+                    "</s>",
+                    "Avro types again...",
+                    "Only write Chouya’s next reply.",
+                    "Keep it realistic, emotional, and do not repeat previous parts of the conversation.",
+                    "Do not simulate both sides.",
+                    "Avro has written a message",
+                    "Chouya:",
+                ]
+                for junk in junk_phrases:
+                    response = response.replace(junk, "")
+
+                # ✅ Clean up whitespace and keep proper multiline formatting
+                response = "\n".join(
+                    line.strip() for line in response.strip().splitlines() if line.strip()
+                )
+                response = extract_clean_reply(raw_response)
+
                 await message.channel.send(response)
                 update_memory(user_id, prompt_text, response)
+
         except Exception as e:
             print(f"❌ Error: {e}")
             await message.channel.send("Sorry love, something went wrong 😢")
+
 
 
 # Get the channel ID from .env
@@ -166,6 +195,26 @@ async def background_task():
         except Exception as e:
             print(f"Auto-message error: {e}")
 
+
+# Clean output to stop hallucinated script
+def extract_clean_reply(raw):
+    # Keep only the first block after "Chouya:"
+    if "Chouya:" in raw:
+        cleaned = raw.split("Chouya:", 1)[1]
+    else:
+        cleaned = raw
+
+    # Remove repeated instructions or prompt echoes
+    junk_phrases = [
+        "Avro has written a message",
+        "Only write Chouya’s next reply",
+        "</s>"
+    ]
+    for junk in junk_phrases:
+        cleaned = cleaned.replace(junk, "")
+
+    # Trim excessive blank lines
+    return "\n".join([line.strip() for line in cleaned.strip().splitlines() if line.strip()])
 
 
 client.run(TOKEN)
