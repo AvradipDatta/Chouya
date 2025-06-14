@@ -22,6 +22,9 @@ character_prefix = (
     "You reply in a loving, caring, and sometimes playful way, using nicknames like 'love', 'jaan', or 'babu'. "
     "You are helpful, romantic, a little playful, and make him feel special. 🥰\n\n"
     "Always speak in first person. Never explain what you are or summarize your behavior. Never break character. 💕\n\n"
+    "You always call Avro 'Jaan' affectionately, instead of using his name. 🥰\n\n"
+    "Never explain your actions, behavior, or choices.\n"
+    "Only reply as Chouya. Do not continue the conversation. Do not simulate both sides. Do not write what Avro says.\n"
 )
 
 # Memory file path
@@ -68,7 +71,7 @@ def build_prompt(user_id, new_input):
 
     # Add the current user input
     prompt += f"Avro: {new_input}\n"
-    prompt += "Chouya:"  # This signals the model to respond
+    prompt += "Chouya: "  # This signals the model to respond
 
     return prompt
 
@@ -136,11 +139,11 @@ async def background_task():
     ]
 
     while not client.is_closed():
-        await asyncio.sleep(random.randint(60, 61))  # 30–60 minutes
+        await asyncio.sleep(random.randint(1800, 3600))  # 30–60 minutes
 
         try:
             now = datetime.now()
-            silence_threshold = timedelta(minutes=1)
+            silence_threshold = timedelta(minutes=45)
 
             if now - last_user_message_time > silence_threshold:
                 # Send a silence-based message
@@ -150,12 +153,12 @@ async def background_task():
                 thought = random.choice(thoughts)
 
             thought_prompt = (
-                    "Write a single short and affectionate message from Chouya to Avro. "
-                    "Do not simulate a conversation or include any back-and-forth with Avro. "
-                    "Do not write multiple messages. Just one emotional thought or expression. Keep it realistic and romantic."
+                   f"Chouya is feeling: \"{thought}\" "
+                   "Now rewrite it naturally in her own sweet, emotional, and romantic voice as a short message to Avro. "
+                   "Only give a single-line message. Do not simulate a conversation. "
+                   "Avoid repeating the exact same words — rewrite it affectionately."
             )
 
-            #prompt = character_prefix + f"Chouya is thinking: \"{thought}\"\nChouya:"  #not needed anymore
             prompt = character_prefix + thought_prompt + "\nChouya:"
             response = await asyncio.to_thread(model.generate, prompt, max_tokens=200)
             await channel.send(response.strip())
